@@ -1,0 +1,66 @@
+---
+# This playbook inspired by the following blog posts:
+# - My First 5 Minutes On A Server; Or, Essential Security for Linux Servers
+#   http://plusbryan.com/my-first-5-minutes-on-a-server-or-essential-security-for-linux-servers
+# - How To Set Up Your Linode For Maximum Awesomeness
+#   http://feross.org/how-to-setup-your-linode/
+
+- name: Reset the root user's password
+  user: name=root password={{ root_password }}
+
+- name: Create an administrative user
+  user: name={{ admin_user_name }} password={{ admin_password }}
+
+- name: Prepare SSH directory structure for administrative user
+  file:
+    path=/home/{{ admin_user_name }}/{{ item.path }}
+    state={{ item.state }}
+    mode=700
+    owner={{ admin_user_name }}
+    group={{ admin_user_name }}
+  with_items:
+    - { path: .ssh, state: directory }
+    - { path: .ssh/authorized_keys, state: touch }
+
+- name: Allow the local user to connect via SSH using public key authentication
+  lineinfile:
+    dest=/home/{{ admin_user_name }}/.ssh/authorized_keys
+    line="{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+
+- name: Disable root SSH login, password-based authentication, and non-admin login
+  lineinfile: dest=/etc/ssh/sshd_config line="{{ item }}"
+  with_items:
+    - PermitRootLogin no
+    - PasswordAuthentication no
+    - AllowUsers {{ admin_user_name }}
+  notify:
+    - restart ssh daemon
+
+- name: Allow admin to use `sudo`
+  lineinfile:
+    dest=/etc/sudoers
+    line="{{ admin_user_name }} ALL=(ALL) ALL"
+    validate="visudo -cf %s"
+
+- name: Update all packages to the latest version
+  apt: upgrade=full
+
+- name: Retrieve new lists of packages
+  apt: update_cache=yes
+
+- name: Install Fail2Ban
+  apt: name=fail2ban
+
+- name: Copy Fail2Ban configuration file
+  command:
+    cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+    creates=/etc/fail2ban/jail.local
+
+- name: Configure Fail2Ban
+  ini_file:
+    dest=/etc/fail2ban/jail.local
+    section=ssh-ddos
+    option=enabled
+    value=true
+  notify:
+    - restart fail2ban
