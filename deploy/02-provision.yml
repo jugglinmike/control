@@ -1,5 +1,7 @@
 ---
 - hosts: all
-  remote_user: "mike"
+  remote_user: "{{ admin_user_name }}"
+  vars_files:
+    - vars/main.yml
   roles:
     - provision

@@ -4,6 +4,8 @@
 # system as the "root" user.
 - hosts: all
   sudo: yes
+  vars_files:
+    - vars/main.yml
   vars_prompt:
     - name: "root_password"
       prompt: "Enter root password"
