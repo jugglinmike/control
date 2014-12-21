@@ -1,4 +1,7 @@
 ---
+# This playbook is dedicated to hardening the target system. It can only be run
+# once; after the initial execution, it will be impossible to log in to the
+# system as the "root" user.
 - hosts: all
   sudo: yes
   vars_prompt:
@@ -15,4 +18,4 @@
       confirm: yes
       salt_size: 7
   roles:
-    - hardening
+    - harden
